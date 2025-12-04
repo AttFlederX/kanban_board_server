@@ -9,36 +9,69 @@ import (
 )
 
 func GetTasks(c *fiber.Ctx) error {
-	var tasks []models.Task
-	if err := services.FindAll("tasks", &tasks); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	// Get authenticated user ID from context
+	userID := c.Locals(contextKeyUserID).(string)
+
+	// Convert string ID to ObjectID
+	userObjectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidUserID})
+	}
+
+	// Find tasks belonging to the authenticated user
+	tasks := []models.Task{}
+	filter := bson.M{fieldUserID: userObjectID}
+	if err := services.Find(collectionTasks, filter, &tasks); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 	return c.JSON(tasks)
 }
 
 func GetTask(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	// Get authenticated user ID
+	userID := c.Locals(contextKeyUserID).(string)
+	userObjectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidUserID})
+	}
+
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
 	}
 
 	var task models.Task
-	if err := services.FindByID("tasks", id, &task); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
+	if err := services.FindByID(collectionTasks, id, &task); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
+	}
+
+	// Verify task belongs to authenticated user
+	if task.UserID != userObjectID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{jsonFieldError: errAccessDenied})
 	}
 
 	return c.JSON(task)
 }
 
 func CreateTask(c *fiber.Ctx) error {
-	var task models.Task
-	if err := c.BodyParser(&task); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	// Get authenticated user ID
+	userID := c.Locals(contextKeyUserID).(string)
+	userObjectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidUserID})
 	}
 
-	id, err := services.InsertOne("tasks", task)
+	var task models.Task
+	if err := c.BodyParser(&task); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: err.Error()})
+	}
+
+	// Force task to belong to authenticated user
+	task.UserID = userObjectID
+
+	id, err := services.InsertOne(collectionTasks, task)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	task.ID = id
@@ -46,38 +79,73 @@ func CreateTask(c *fiber.Ctx) error {
 }
 
 func UpdateTask(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	// Get authenticated user ID
+	userID := c.Locals(contextKeyUserID).(string)
+	userObjectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidUserID})
+	}
+
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
+	}
+
+	// Check if task exists and belongs to user
+	var existingTask models.Task
+	if err := services.FindByID(collectionTasks, id, &existingTask); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
+	}
+
+	if existingTask.UserID != userObjectID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{jsonFieldError: errAccessDenied})
 	}
 
 	var task models.Task
 	if err := c.BodyParser(&task); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	update := bson.M{
-		"name":        task.Name,
-		"description": task.Description,
-		"status":      task.Status,
-		"userId":      task.UserID,
+		fieldName:        task.Name,
+		fieldDescription: task.Description,
+		fieldStatus:      task.Status,
+		fieldUserID:      userObjectID,
 	}
-	if err := services.UpdateByID("tasks", id, update); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if err := services.UpdateByID(collectionTasks, id, update); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	task.ID = id
+	task.UserID = userObjectID
 	return c.JSON(task)
 }
 
 func DeleteTask(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	// Get authenticated user ID
+	userID := c.Locals(contextKeyUserID).(string)
+	userObjectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidUserID})
 	}
 
-	if err := services.DeleteByID("tasks", id); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
+	}
+
+	// Check if task exists and belongs to user
+	var task models.Task
+	if err := services.FindByID(collectionTasks, id, &task); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
+	}
+
+	if task.UserID != userObjectID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{jsonFieldError: errAccessDenied})
+	}
+
+	if err := services.DeleteByID(collectionTasks, id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

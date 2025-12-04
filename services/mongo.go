@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func FindAll(collection string, result interface{}) error {
+func FindAll(collection string, result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -22,14 +22,34 @@ func FindAll(collection string, result interface{}) error {
 	return cursor.All(ctx, result)
 }
 
-func FindByID(collection string, id primitive.ObjectID, result interface{}) error {
+func Find(collection string, filter bson.M, result any) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := database.DB.Collection(collection).Find(ctx, filter)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	return cursor.All(ctx, result)
+}
+
+func FindByID(collection string, id primitive.ObjectID, result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	return database.DB.Collection(collection).FindOne(ctx, bson.M{"_id": id}).Decode(result)
 }
 
-func InsertOne(collection string, document interface{}) (primitive.ObjectID, error) {
+func FindOne(collection string, filter bson.M, result any) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return database.DB.Collection(collection).FindOne(ctx, filter).Decode(result)
+}
+
+func InsertOne(collection string, document any) (primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

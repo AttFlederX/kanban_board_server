@@ -8,23 +8,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func GetUsers(c *fiber.Ctx) error {
-	var users []models.User
-	if err := services.FindAll("users", &users); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.JSON(users)
-}
-
 func GetUser(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
 	}
 
 	var user models.User
-	if err := services.FindByID("users", id, &user); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	if err := services.FindByID(collectionUsers, id, &user); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errUserNotFound})
 	}
 
 	return c.JSON(user)
@@ -33,12 +25,12 @@ func GetUser(c *fiber.Ctx) error {
 func CreateUser(c *fiber.Ctx) error {
 	var user models.User
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
-	id, err := services.InsertOne("users", user)
+	id, err := services.InsertOne(collectionUsers, user)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	user.ID = id
@@ -46,19 +38,19 @@ func CreateUser(c *fiber.Ctx) error {
 }
 
 func UpdateUser(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
 	}
 
 	var user models.User
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
-	update := bson.M{"name": user.Name, "photourl": user.PhotoURL}
-	if err := services.UpdateByID("users", id, update); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	update := bson.M{fieldName: user.Name, fieldPhotoURL: user.PhotoURL}
+	if err := services.UpdateByID(collectionUsers, id, update); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	user.ID = id
@@ -66,13 +58,13 @@ func UpdateUser(c *fiber.Ctx) error {
 }
 
 func DeleteUser(c *fiber.Ctx) error {
-	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	id, err := primitive.ObjectIDFromHex(c.Params(jsonFieldID))
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
 	}
 
-	if err := services.DeleteByID("users", id); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	if err := services.DeleteByID(collectionUsers, id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

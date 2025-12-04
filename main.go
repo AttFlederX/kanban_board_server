@@ -6,7 +6,9 @@ import (
 	"github.com/AttFlederX/kanban_board_server/config"
 	"github.com/AttFlederX/kanban_board_server/database"
 	"github.com/AttFlederX/kanban_board_server/handlers"
+	"github.com/AttFlederX/kanban_board_server/middleware"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -21,19 +23,33 @@ func main() {
 
 	app := fiber.New()
 
-	// User routes
-	app.Get("/users", handlers.GetUsers)
-	app.Get("/users/:id", handlers.GetUser)
-	app.Post("/users", handlers.CreateUser)
-	app.Put("/users/:id", handlers.UpdateUser)
-	app.Delete("/users/:id", handlers.DeleteUser)
+	// Enable CORS
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+	}))
 
-	// Task routes
-	app.Get("/tasks", handlers.GetTasks)
-	app.Get("/tasks/:id", handlers.GetTask)
-	app.Post("/tasks", handlers.CreateTask)
-	app.Put("/tasks/:id", handlers.UpdateTask)
-	app.Delete("/tasks/:id", handlers.DeleteTask)
+	// Auth routes (public)
+	app.Post("/auth/google", func(c *fiber.Ctx) error {
+		return handlers.GoogleSignIn(c, cfg.JWTSecret)
+	})
+
+	// Protected routes
+	authApp := app.Group("", middleware.AuthRequired(cfg.JWTSecret))
+
+	// User routes (protected)
+	authApp.Get("/users/:id", handlers.GetUser)
+	authApp.Post("/users", handlers.CreateUser)
+	authApp.Put("/users/:id", handlers.UpdateUser)
+	authApp.Delete("/users/:id", handlers.DeleteUser)
+
+	// Task routes (protected)
+	authApp.Get("/tasks", handlers.GetTasks)
+	authApp.Get("/tasks/:id", handlers.GetTask)
+	authApp.Post("/tasks", handlers.CreateTask)
+	authApp.Put("/tasks/:id", handlers.UpdateTask)
+	authApp.Delete("/tasks/:id", handlers.DeleteTask)
 
 	log.Fatal(app.Listen(":" + cfg.Port))
 }
