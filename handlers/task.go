@@ -75,6 +75,10 @@ func CreateTask(c *fiber.Ctx) error {
 	}
 
 	task.ID = id
+
+	// Broadcast task creation to websocket clients
+	BroadcastTaskChange("create", id, userObjectID, task)
+
 	return c.Status(fiber.StatusCreated).JSON(task)
 }
 
@@ -118,6 +122,10 @@ func UpdateTask(c *fiber.Ctx) error {
 
 	task.ID = id
 	task.UserID = userObjectID
+
+	// Broadcast task update to websocket clients
+	BroadcastTaskChange("update", id, userObjectID, task)
+
 	return c.JSON(task)
 }
 
@@ -147,6 +155,9 @@ func DeleteTask(c *fiber.Ctx) error {
 	if err := services.DeleteByID(collectionTasks, id); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
+
+	// Broadcast task deletion to websocket clients
+	BroadcastTaskChange("delete", id, userObjectID, nil)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

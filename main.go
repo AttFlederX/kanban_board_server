@@ -7,6 +7,7 @@ import (
 	"github.com/AttFlederX/kanban_board_server/database"
 	"github.com/AttFlederX/kanban_board_server/handlers"
 	"github.com/AttFlederX/kanban_board_server/middleware"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
@@ -21,6 +22,10 @@ func main() {
 		log.Fatal("Database connection failed:", err)
 	}
 
+	// Initialize websocket hub
+	handlers.SetJWTSecret(cfg.JWTSecret)
+	handlers.InitHub()
+
 	app := fiber.New()
 
 	// Enable CORS
@@ -34,6 +39,9 @@ func main() {
 	app.Post("/auth/google", func(c *fiber.Ctx) error {
 		return handlers.GoogleSignIn(c, cfg.JWTSecret)
 	})
+
+	// WebSocket route (handles auth via token query param)
+	app.Get("/ws", websocket.New(handlers.HandleWebSocket))
 
 	// Protected routes
 	authApp := app.Group("", middleware.AuthRequired(cfg.JWTSecret))
