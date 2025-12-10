@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/AttFlederX/kanban_board_server/models"
-	"github.com/AttFlederX/kanban_board_server/services"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,7 +14,7 @@ func GetUser(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := services.FindByID(collectionUsers, id, &user); err != nil {
+	if err := UserService.FindByID(id, &user); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errUserNotFound})
 	}
 
@@ -28,7 +27,7 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
-	id, err := services.InsertOne(collectionUsers, user)
+	id, err := UserService.InsertOne(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
@@ -49,7 +48,7 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	update := bson.M{fieldName: user.Name, fieldPhotoURL: user.PhotoURL}
-	if err := services.UpdateByID(collectionUsers, id, update); err != nil {
+	if err := UserService.UpdateByID(id, update); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
@@ -63,7 +62,7 @@ func DeleteUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{jsonFieldError: errInvalidID})
 	}
 
-	if err := services.DeleteByID(collectionUsers, id); err != nil {
+	if err := UserService.DeleteByID(id); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 

@@ -1,10 +1,13 @@
 package handlers
 
-const (
-	// Collection names
-	collectionTasks = "tasks"
-	collectionUsers = "users"
+import "github.com/AttFlederX/kanban_board_server/services"
 
+var (
+	TaskService = services.NewMongoService("tasks")
+	UserService = services.NewMongoService("users")
+)
+
+const (
 	// Context keys
 	contextKeyUserID = "userID"
 
@@ -20,9 +23,6 @@ const (
 	// JSON field names
 	jsonFieldID      = "id"
 	jsonFieldError   = "error"
-	jsonFieldIDToken = "id_token"
-	jsonFieldToken   = "token"
-	jsonFieldUser    = "user"
 
 	// Token payload claim keys
 	claimEmail   = "email"

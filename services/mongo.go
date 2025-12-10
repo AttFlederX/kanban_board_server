@@ -9,11 +9,21 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func FindAll(collection string, result any) error {
+type MongoService struct {
+	CollectionName string
+}
+
+func NewMongoService(collectionName string) *MongoService {
+	return &MongoService{
+		CollectionName: collectionName,
+	}
+}
+
+func (s *MongoService) FindAll(result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := database.DB.Collection(collection).Find(ctx, bson.M{})
+	cursor, err := database.DB.Collection(s.CollectionName).Find(ctx, bson.M{})
 	if err != nil {
 		return err
 	}
@@ -22,11 +32,11 @@ func FindAll(collection string, result any) error {
 	return cursor.All(ctx, result)
 }
 
-func Find(collection string, filter bson.M, result any) error {
+func (s *MongoService) Find(filter bson.M, result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := database.DB.Collection(collection).Find(ctx, filter)
+	cursor, err := database.DB.Collection(s.CollectionName).Find(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -35,25 +45,25 @@ func Find(collection string, filter bson.M, result any) error {
 	return cursor.All(ctx, result)
 }
 
-func FindByID(collection string, id primitive.ObjectID, result any) error {
+func (s *MongoService) FindByID(id primitive.ObjectID, result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	return database.DB.Collection(collection).FindOne(ctx, bson.M{"_id": id}).Decode(result)
+	return database.DB.Collection(s.CollectionName).FindOne(ctx, bson.M{"_id": id}).Decode(result)
 }
 
-func FindOne(collection string, filter bson.M, result any) error {
+func (s *MongoService) FindOne(filter bson.M, result any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	return database.DB.Collection(collection).FindOne(ctx, filter).Decode(result)
+	return database.DB.Collection(s.CollectionName).FindOne(ctx, filter).Decode(result)
 }
 
-func InsertOne(collection string, document any) (primitive.ObjectID, error) {
+func (s *MongoService) InsertOne(document any) (primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := database.DB.Collection(collection).InsertOne(ctx, document)
+	result, err := database.DB.Collection(s.CollectionName).InsertOne(ctx, document)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
@@ -61,18 +71,18 @@ func InsertOne(collection string, document any) (primitive.ObjectID, error) {
 	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-func UpdateByID(collection string, id primitive.ObjectID, update bson.M) error {
+func (s *MongoService) UpdateByID(id primitive.ObjectID, update bson.M) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err := database.DB.Collection(collection).UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
+	_, err := database.DB.Collection(s.CollectionName).UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	return err
 }
 
-func DeleteByID(collection string, id primitive.ObjectID) error {
+func (s *MongoService) DeleteByID(id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err := database.DB.Collection(collection).DeleteOne(ctx, bson.M{"_id": id})
+	_, err := database.DB.Collection(s.CollectionName).DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }

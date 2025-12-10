@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/AttFlederX/kanban_board_server/models"
-	"github.com/AttFlederX/kanban_board_server/services"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,7 +20,7 @@ func GetTasks(c *fiber.Ctx) error {
 	// Find tasks belonging to the authenticated user
 	tasks := []models.Task{}
 	filter := bson.M{fieldUserID: userObjectID}
-	if err := services.Find(collectionTasks, filter, &tasks); err != nil {
+	if err := TaskService.Find(filter, &tasks); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 	return c.JSON(tasks)
@@ -41,7 +40,7 @@ func GetTask(c *fiber.Ctx) error {
 	}
 
 	var task models.Task
-	if err := services.FindByID(collectionTasks, id, &task); err != nil {
+	if err := TaskService.FindByID(id, &task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
 	}
 
@@ -69,7 +68,7 @@ func CreateTask(c *fiber.Ctx) error {
 	// Force task to belong to authenticated user
 	task.UserID = userObjectID
 
-	id, err := services.InsertOne(collectionTasks, task)
+	id, err := TaskService.InsertOne(task)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
@@ -97,7 +96,7 @@ func UpdateTask(c *fiber.Ctx) error {
 
 	// Check if task exists and belongs to user
 	var existingTask models.Task
-	if err := services.FindByID(collectionTasks, id, &existingTask); err != nil {
+	if err := TaskService.FindByID(id, &existingTask); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
 	}
 
@@ -116,7 +115,7 @@ func UpdateTask(c *fiber.Ctx) error {
 		fieldStatus:      task.Status,
 		fieldUserID:      userObjectID,
 	}
-	if err := services.UpdateByID(collectionTasks, id, update); err != nil {
+	if err := TaskService.UpdateByID(id, update); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 
@@ -144,7 +143,7 @@ func DeleteTask(c *fiber.Ctx) error {
 
 	// Check if task exists and belongs to user
 	var task models.Task
-	if err := services.FindByID(collectionTasks, id, &task); err != nil {
+	if err := TaskService.FindByID(id, &task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{jsonFieldError: errTaskNotFound})
 	}
 
@@ -152,7 +151,7 @@ func DeleteTask(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{jsonFieldError: errAccessDenied})
 	}
 
-	if err := services.DeleteByID(collectionTasks, id); err != nil {
+	if err := TaskService.DeleteByID(id); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{jsonFieldError: err.Error()})
 	}
 

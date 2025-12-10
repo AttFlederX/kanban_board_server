@@ -6,21 +6,11 @@ import (
 
 	"github.com/AttFlederX/kanban_board_server/middleware"
 	"github.com/AttFlederX/kanban_board_server/models"
-	"github.com/AttFlederX/kanban_board_server/services"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"google.golang.org/api/idtoken"
 )
-
-type GoogleSignInRequest struct {
-	IDToken string `json:"id_token"`
-}
-
-type AuthResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
-}
 
 func GoogleSignIn(c *fiber.Ctx, jwtSecret string) error {
 	var req GoogleSignInRequest
@@ -55,7 +45,7 @@ func GoogleSignIn(c *fiber.Ctx, jwtSecret string) error {
 
 	// Check if user exists in database
 	var user models.User
-	err = services.FindOne(collectionUsers, bson.M{fieldGoogleID: googleID}, &user)
+	err = UserService.FindOne(bson.M{fieldGoogleID: googleID}, &user)
 
 	if err != nil {
 		// User doesn't exist, create new user
@@ -66,7 +56,7 @@ func GoogleSignIn(c *fiber.Ctx, jwtSecret string) error {
 			PhotoURL: photoURL,
 		}
 
-		userID, err := services.InsertOne(collectionUsers, user)
+		userID, err := UserService.InsertOne(user)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				jsonFieldError: errFailedCreateUser,
@@ -80,7 +70,7 @@ func GoogleSignIn(c *fiber.Ctx, jwtSecret string) error {
 			fieldPhotoURL: photoURL,
 			fieldEmail:    email,
 		}
-		if err := services.UpdateByID(collectionUsers, user.ID, update); err != nil {
+		if err := UserService.UpdateByID(user.ID, update); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				jsonFieldError: errFailedUpdateUser,
 			})
